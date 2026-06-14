@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Nary's Schedule">
+<title>Nary's Schedule</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #F5F5F5; min-height: 100vh; }
+  .app { max-width: 430px; margin: 0 auto; min-height: 100vh; background: white; display: flex; flex-direction: column; }
+
+  /* Top bar */
+  .topbar { background: #AD1457; padding: 52px 16px 14px; color: white; flex-shrink: 0; }
+  .topbar h1 { font-size: 20px; font-weight: 600; }
+  .topbar p { font-size: 13px; opacity: 0.85; margin-top: 3px; }
+
+  /* Bottom nav */
+  .nav { display: flex; border-top: 0.5px solid #E0E0E0; background: white; position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  .nav button { flex: 1; padding: 10px 4px 8px; font-size: 10px; background: none; border: none; border-top: 2px solid transparent; color: #9E9E9E; cursor: pointer; font-family: inherit; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .nav button i { font-size: 22px; }
+  .nav button.active { color: #AD1457; border-top-color: #AD1457; }
+
+  /* Screens */
+  .screen { display: none; padding: 12px 12px 80px; flex: 1; overflow-y: auto; }
+  .screen.active { display: block; }
+
+  /* Week navigation */
+  .week-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .week-nav button { background: none; border: 0.5px solid #E0E0E0; border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; color: #212121; font-family: inherit; }
+  .week-nav span { font-size: 13px; font-weight: 500; color: #212121; }
+
+  /* Calendar grid */
+  .cal-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 0.5px solid #E0E0E0; }
+  .cal-grid { display: grid; grid-template-columns: 48px repeat(5, minmax(52px, 1fr)); gap: 0; min-width: 320px; }
+  .cal-header { background: #F48FB1; color: #6D0D35; font-weight: 600; text-align: center; padding: 7px 2px; font-size: 11px; border-bottom: 0.5px solid #E0E0E0; }
+  .time-label { background: #FAFAFA; color: #9E9E9E; text-align: center; padding: 4px 2px; font-size: 9px; display: flex; align-items: center; justify-content: center; min-height: 30px; border-bottom: 0.5px solid #F0F0F0; border-right: 0.5px solid #E0E0E0; }
+  .slot { min-height: 30px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 2px; border-bottom: 0.5px solid #F0F0F0; border-right: 0.5px solid #F0F0F0; background: #E8F5E9; transition: background 0.1s; }
+  .slot:active { background: #C8E6C9; }
+  .slot.booked { background: #FCE4EC; cursor: default; }
+  .slot.booked:active { background: #F8BBD0; }
+  .slot-text { font-size: 9px; color: #AD1457; font-weight: 600; text-align: center; line-height: 1.2; }
+
+  /* Legend */
+  .legend { display: flex; gap: 16px; margin-top: 10px; padding-left: 2px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #757575; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+  /* Section title */
+  .section-title { font-size: 15px; font-weight: 600; color: #212121; margin-bottom: 12px; }
+
+  /* Appointment cards */
+  .appt-card { background: white; border: 0.5px solid #E0E0E0; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+  .appt-left { flex: 1; }
+  .appt-name { font-size: 14px; font-weight: 600; color: #212121; }
+  .appt-svc { font-size: 12px; color: #757575; margin-top: 2px; }
+  .appt-right { text-align: right; margin-left: 12px; }
+  .appt-time-text { font-size: 14px; font-weight: 600; color: #AD1457; }
+  .appt-date-text { font-size: 12px; color: #757575; margin-top: 2px; }
+  .del-btn { background: none; border: 0.5px solid #E0E0E0; border-radius: 8px; padding: 6px 10px; font-size: 13px; color: #9E9E9E; cursor: pointer; margin-left: 10px; font-family: inherit; }
+
+  /* Add form */
+  .add-form { background: #FAFAFA; border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 0.5px solid #E0E0E0; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { font-size: 12px; color: #757575; display: block; margin-bottom: 5px; font-weight: 500; }
+  .form-row select, .form-row input { width: 100%; font-size: 15px; padding: 10px 12px; border: 0.5px solid #E0E0E0; border-radius: 8px; background: white; color: #212121; font-family: inherit; -webkit-appearance: none; appearance: none; }
+  .form-row select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23757575' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+  /* Submit button */
+  .submit-btn { width: 100%; padding: 14px; background: #AD1457; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 4px; }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .submit-btn:active { background: #880E4F; }
+
+  /* Status message */
+  .status-msg { font-size: 13px; text-align: center; margin-top: 10px; min-height: 20px; color: #757575; }
+  .status-msg.success { color: #2E7D32; }
+  .status-msg.error { color: #AD1457; }
+
+  /* Empty and loading states */
+  .empty { text-align: center; color: #9E9E9E; font-size: 14px; padding: 32px 0; }
+  .loading-msg { text-align: center; color: #9E9E9E; font-size: 13px; padding: 20px 0; }
+
+  /* Date group headers in upcoming */
+  .date-group { font-size: 12px; font-weight: 600; color: #AD1457; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <h1>💅 Nary's schedule</h1>
+    <p id="today-label"></p>
+  </div>
+
+  <!-- Weekly View -->
+  <div id="weekly" class="screen active">
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)"><i class="ti ti-chevron-left"></i> Prev</button>
+      <span id="week-label">Loading...</span>
+      <button onclick="changeWeek(1)">Next <i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="cal-wrap">
+      <div class="cal-grid" id="cal-grid">
+        <div class="loading-msg" style="grid-column:1/-1;padding:20px">Loading calendar...</div>
+      </div>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#FCE4EC;border:0.5px solid #F48FB1"></div>Booked</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#E8F5E9;border:0.5px solid #A5D6A7"></div>Available — tap to book</div>
+    </div>
+  </div>
+
+  <!-- Upcoming -->
+  <div id="upcoming" class="screen">
+    <p class="section-title">Upcoming appointments</p>
+    <div id="appt-list"><div class="loading-msg">Loading...</div></div>
+  </div>
+
+  <!-- Book -->
+  <div id="add" class="screen">
+    <p class="section-title">Book an appointment</p>
+    <div class="add-form">
+      <div class="form-row">
+        <label>Client</label>
+        <select id="client-select"><option value="">Loading clients...</option></select>
+      </div>
+      <div class="form-row">
+        <label>Date</label>
+        <input type="date" id="appt-date">
+      </div>
+      <div class="form-row">
+        <label>Start time</label>
+        <select id="appt-time"></select>
+      </div>
+      <div class="form-row">
+        <label>Service</label>
+        <select id="appt-service">
+          <option>Sculpted Manicure - Short</option>
+          <option>Sculpted Manicure - Medium</option>
+          <option>Sculpted Manicure - Medium-Long</option>
+          <option>Sculpted Manicure - Long</option>
+          <option>Sculpted Manicure - Extra Long</option>
+          <option>Polish Change (Toes)</option>
+          <option>Gel Polish (Toes)</option>
+        </select>
+      </div>
+      <button class="submit-btn" onclick="submitAppointment()" id="submit-btn">Confirm appointment</button>
+      <p class="status-msg" id="form-status"></p>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <nav class="nav">
+    <button class="active" onclick="showScreen('weekly', this)">
+      <i class="ti ti-calendar"></i>Weekly
+    </button>
+    <button onclick="showScreen('upcoming', this)">
+      <i class="ti ti-list"></i>Upcoming
+    </button>
+    <button onclick="showScreen('add', this)">
+      <i class="ti ti-plus"></i>Book
+    </button>
+  </nav>
+
+</div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbyM5Ey6s-CN7nUL09D_7nn0BjvRPWDRjxx8VhsShZnC6OB70VrM_ppkjEI-CLosXwPg/exec";
+const DAYS = ["Mon","Tue","Wed","Thu","Fri"];
+const TIMES = [];
+for(let h=10;h<=19;h++){
+  for(let m=0;m<60;m+=30){
+    if(h===19&&m>30)break;
+    const ap=h>=12?"PM":"AM";
+    const hr=h>12?h-12:(h===0?12:h);
+    TIMES.push(`${hr}:${String(m).padStart(2,"0")} ${ap}`);
+  }
+}
+
+let appointments = [];
+let clients = [];
+let weekOffset = 0;
+
+function getMonday(offset){
+  const d = new Date();
+  const day = d.getDay();
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - (day===0?6:day-1) + offset*7);
+  mon.setHours(0,0,0,0);
+  return mon;
+}
+
+function fmtDate(d){return d.toLocaleDateString("en-US",{month:"short",day:"numeric"});}
+function fmtDateVal(d){
+  const m=String(d.getMonth()+1).padStart(2,"0");
+  const dd=String(d.getDate()).padStart(2,"0");
+  return `${m}/${dd}/${d.getFullYear()}`;
+}
+
+function showScreen(name, btn){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+  document.getElementById(name).classList.add("active");
+  if(btn) btn.classList.add("active");
+  if(name==="upcoming") renderUpcoming();
+}
+
+function changeWeek(dir){
+  weekOffset+=dir;
+  renderWeekly();
+}
+
+function parseDuration(val){
+  if(!val)return 1;
+  const s=val.toString();
+  if(s.includes("2.5"))return 2.5;
+  if(s.includes("2"))return 2;
+  if(s.includes("1.5"))return 1.5;
+  return 1;
+}
+
+function parseHour(t){
+  if(!t)return null;
+  const m=t.toString().toUpperCase().match(/(\d+):(\d+)\s*(AM|PM)/);
+  if(!m)return null;
+  let h=parseInt(m[1]);
+  if(m[3]==="PM"&&h!==12)h+=12;
+  if(m[3]==="AM"&&h===12)h=0;
+  return h;
+}
+
+function parseMin(t){
+  if(!t)return 0;
+  const m=t.toString().match(/\d+:(\d+)/);
+  return m?parseInt(m[1]):0;
+}
+
+function renderWeekly(){
+  const mon = getMonday(weekOffset);
+  const days = [];
+  for(let i=0;i<5;i++){
+    const d=new Date(mon);
+    d.setDate(mon.getDate()+i);
+    days.push(d);
+  }
+  const end = days[4];
+  document.getElementById("week-label").textContent=`${fmtDate(mon)} – ${fmtDate(end)}`;
+
+  const grid = document.getElementById("cal-grid");
+  let html = `<div class="cal-header"></div>`;
+  days.forEach((d,i)=>{
+    html+=`<div class="cal-header">${DAYS[i]}<br>${d.getDate()}</div>`;
+  });
+
+  TIMES.forEach(slot=>{
+    html+=`<div class="time-label">${slot}</div>`;
+    const slotH=parseHour(slot), slotM=parseMin(slot);
+    days.forEach(day=>{
+      const dayStr=fmtDateVal(day);
+      const match=appointments.find(a=>{
+        if(a.date!==dayStr)return false;
+        const ah=parseHour(a.time),am=parseMin(a.time);
+        if(ah===null)return false;
+        const slotMins=slotH*60+slotM;
+        const start=ah*60+am;
+        return slotMins>=start&&slotMins<start+parseDuration(a.duration)*60;
+      });
+      if(match){
+        const ah=parseHour(match.time),am=parseMin(match.time);
+        const isFirst=slotH===ah&&slotM===am;
+        html+=`<div class="slot booked"><span class="slot-text">${isFirst?match.client.split(" ")[0]:"·"}</span></div>`;
+      } else {
+        html+=`<div class="slot" onclick="quickBook('${dayStr}','${slot}')"></div>`;
+      }
+    });
+  });
+
+  grid.innerHTML=html;
+}
+
+function quickBook(date, time){
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".nav button")[2].classList.add("active");
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById("add").classList.add("active");
+  const parts=date.split("/");
+  document.getElementById("appt-date").value=`${parts[2]}-${parts[0]}-${parts[1]}`;
+  document.getElementById("appt-time").value=time;
+}
+
+function renderUpcoming(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const upcoming=appointments.filter(a=>{
+    const parts=a.date.split("/");
+    const d=new Date(parseInt(parts[2]),parseInt(parts[0])-1,parseInt(parts[1]));
+    return d>=today;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  const list=document.getElementById("appt-list");
+  if(!upcoming.length){
+    list.innerHTML='<p class="empty">No upcoming appointments</p>';
+    return;
+  }
+
+  let html="", lastDate="";
+  upcoming.forEach(a=>{
+    if(a.date!==lastDate){
+      const parts=a.date.split("/");
+      const d=new Date(parseInt(parts[2]),parseInt(parts[0])-1,parseInt(parts[1]));
+      html+=`<div class="date-group">${d.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</div>`;
+      lastDate=a.date;
+    }
+    html+=`
+      <div class="appt-card">
+        <div class="appt-left">
+          <div class="appt-name">${a.client}</div>
+          <div class="appt-svc">${a.service||"—"} &bull; ${a.duration||""}</div>
+        </div>
+        <div class="appt-right">
+          <div class="appt-time-text">${a.time}</div>
+        </div>
+        <button class="del-btn" onclick="deleteAppt(${a.row})" aria-label="Delete appointment">
+          <i class="ti ti-trash"></i>
+        </button>
+      </div>`;
+  });
+  list.innerHTML=html;
+}
+
+async function deleteAppt(row){
+  if(!confirm("Remove this appointment?"))return;
+  try{
+    await fetch(API,{
+      method:"POST",
+      body:JSON.stringify({action:"deleteAppointment",row}),
+      headers:{"Content-Type":"text/plain"}
+    });
+    await loadData();
+    renderUpcoming();
+  }catch(e){
+    alert("Could not delete. Check your connection and try again.");
+  }
+}
+
+async function submitAppointment(){
+  const client=document.getElementById("client-select").value;
+  const date=document.getElementById("appt-date").value;
+  const time=document.getElementById("appt-time").value;
+  const service=document.getElementById("appt-service").value;
+  const status=document.getElementById("form-status");
+  const btn=document.getElementById("submit-btn");
+
+  if(!client||!date||!time){
+    status.textContent="Please fill in all fields.";
+    status.className="status-msg error";
+    return;
+  }
+
+  const parts=date.split("-");
+  const fmtd=`${parts[1]}/${parts[2]}/${parts[0]}`;
+
+  btn.disabled=true;
+  status.textContent="Saving...";
+  status.className="status-msg";
+
+  try{
+    await fetch(API,{
+      method:"POST",
+      body:JSON.stringify({action:"addAppointment",date:fmtd,time,client,service}),
+      headers:{"Content-Type":"text/plain"}
+    });
+    await loadData();
+    renderWeekly();
+    status.textContent="Appointment booked!";
+    status.className="status-msg success";
+    btn.disabled=false;
+  }catch(e){
+    status.textContent="Could not save. Check your connection.";
+    status.className="status-msg error";
+    btn.disabled=false;
+  }
+}
+
+async function loadData(){
+  try{
+    const [apptRes, clientRes]=await Promise.all([
+      fetch(`${API}?action=getAppointments`),
+      fetch(`${API}?action=getClients`)
+    ]);
+    appointments=await apptRes.json();
+    clients=await clientRes.json();
+
+    const sel=document.getElementById("client-select");
+    sel.innerHTML='<option value="">Select client...</option>'+
+      clients.filter(c=>c.name).map(c=>`<option value="${c.name}">${c.name}</option>`).join("");
+
+    const timeSel=document.getElementById("appt-time");
+    timeSel.innerHTML=TIMES.map(t=>`<option value="${t}">${t}</option>`).join("");
+
+    renderWeekly();
+  }catch(e){
+    document.getElementById("cal-grid").innerHTML=
+      '<div class="loading-msg" style="grid-column:1/-1;padding:20px;color:#AD1457">Could not load data. Check your connection and refresh.</div>';
+  }
+}
+
+const today=new Date();
+document.getElementById("today-label").textContent=
+  today.toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
+
+const todayVal=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+document.getElementById("appt-date").value=todayVal;
+
+loadData();
+</script>
+</body>
+</html>
